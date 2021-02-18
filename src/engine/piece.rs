@@ -1,3 +1,4 @@
+#[derive(Copy, Clone)]
 pub enum Piece {
     WKing,
     WQueen,
@@ -11,7 +12,7 @@ pub enum Piece {
     BKnight,
     BBishop,
     BPawn,
-    None,
+    Blank,
 }
 
 impl Piece {
@@ -29,7 +30,7 @@ impl Piece {
             Piece::BKnight => 'n',
             Piece::BBishop => 'b',
             Piece::BPawn => 'p',
-            Piece::None => '-',
+            Piece::Blank => '-',
         }
     }
 }
