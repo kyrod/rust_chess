@@ -1,6 +1,9 @@
 use super::piece::Piece;
 use super::piece::Piece::*;
 use super::piece::PieceColor;
+use super::piece::PieceType;
+
+use std::cmp;
 
 #[derive(Copy, Clone)]
 pub struct Board {
@@ -125,6 +128,40 @@ impl Board {
         }
     }
 
+    pub fn is_occupied(self, target: (usize, usize)) -> bool {
+        return self.squares[target.0][target.1] != Piece::Blank;
+    }
+
+    pub fn get_path(start: (usize, usize), target: (usize, usize)) -> Vec<(usize, usize)> {
+        let mut path: Vec<(usize, usize)> = Vec::new();
+        let ydiff = target.0 as i8 - start.0 as i8;
+        let xdiff = target.1 as i8 - start.1 as i8;
+        for _ in 0..cmp::max(xdiff.abs(), ydiff.abs()) {
+            path.push((
+                (start.0 as i8 + ydiff / cmp::max(xdiff.abs(), ydiff.abs())) as usize,
+                (start.1 as i8 + xdiff / cmp::max(xdiff.abs(), ydiff.abs())) as usize,
+            ))
+        }
+        return path;
+    }
+    pub fn piece_in_path(
+        self,
+        start: (usize, usize),
+        target: (usize, usize),
+        piece: Piece,
+    ) -> bool {
+        if piece.as_type() == PieceType::Knight {
+            return self.is_occupied(target);
+        }
+        let target_line = Board::get_path(start, target);
+        for pos in target_line {
+            if self.is_occupied(pos) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     pub fn validate_move(
         self,
         start: (usize, usize),
@@ -139,10 +176,13 @@ impl Board {
             // Cannot move opponent's piece
             return false;
         }
-        if piece.valid_move(start, target) {
-            return true;
+        if !piece.valid_move(start, target) {
+            return false;
         }
-        return false;
+        if self.piece_in_path(start, target, piece) {
+            return false;
+        }
+        return true;
     }
     pub fn increment_move(&mut self) {
         if self.to_move == Turn::Black {
@@ -275,5 +315,21 @@ mod tests {
         // test that only valid squares are allowed
         let mut board = Board::default();
         board.make_move(String::from("e7e6"));
+    }
+
+    #[test]
+    fn test_move_gen() {
+        let board = Board::default();
+
+        let moves1 = board.generate_moves();
+        assert_eq!(moves1.len(), 20);
+        let moves2 = board.recurse_gen_moves();
+        let mut count2 = 0;
+        for l in moves2 {
+            for _ in l {
+                count2 += 1;
+            }
+        }
+        assert_eq!(count2, 400);
     }
 }

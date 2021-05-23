@@ -28,14 +28,14 @@ fn main() {
     for l in moves2 {
         for m in l {
             count2 += 1;
-            println!(
+            /* println!(
                 "{}, ({}, {}), ({}, {})",
                 m.piece.as_string(),
                 m.start.0,
                 m.start.1,
                 m.end.0,
                 m.start.1
-            )
+            ) */
         }
     }
     println!("{} moves for white", count1);
