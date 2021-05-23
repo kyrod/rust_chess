@@ -1,5 +1,6 @@
 use super::piece::Piece;
 use super::piece::Piece::*;
+use super::piece::PieceColor;
 
 #[derive(Copy, Clone)]
 pub struct Board {
@@ -8,7 +9,7 @@ pub struct Board {
     pub to_move: Turn,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum Turn {
     White,
     Black,
@@ -19,6 +20,18 @@ impl Turn {
         match *self {
             Turn::White => "White",
             Turn::Black => "Black",
+        }
+    }
+    pub fn as_color(&self) -> PieceColor {
+        match *self {
+            Turn::White => PieceColor::White,
+            Turn::Black => PieceColor::Black,
+        }
+    }
+    pub fn opposite_turn(&self) -> Turn {
+        match *self {
+            Turn::White => Turn::Black,
+            Turn::Black => Turn::White,
         }
     }
 }
@@ -50,6 +63,7 @@ impl Board {
         for c in self.to_string().chars() {
             print!("{}", c)
         }
+        println!("---------------");
     }
     pub fn to_string(&self) -> String {
         let mut board_str = "".to_string();
@@ -97,20 +111,56 @@ impl Board {
                 None => panic!("Invalid square!"),
             }
         }
-        // converts a 2 char board position into an array
+        // converts a 2 char board position into a tuple
         match square_string {
             Some(s) => (to_row(s.get(1..2)), to_col(s.get(0..1))),
             None => (0, 0),
         }
     }
 
-    pub fn move_piece(&mut self, move_string: String) {
+    pub fn validate_move(
+        self,
+        start: (usize, usize),
+        target: (usize, usize),
+        piece: Piece,
+    ) -> bool {
+        if piece.as_char() == Piece::Blank.as_char() {
+            // Cannot move an empty square
+            return false;
+        }
+        if self.to_move.as_color() != piece.as_color() {
+            // Cannot move opponent's piece
+            return false;
+        }
+        if piece.valid_move(start, target) {
+            return true;
+        }
+        return false;
+    }
+    pub fn increment_move(&mut self) {
+        if self.to_move == Turn::Black {
+            self.move_number += 1;
+        }
+        self.to_move = self.to_move.opposite_turn();
+    }
+
+    pub fn move_piece(&mut self, piece: Piece, location: (usize, usize), target: (usize, usize)) {
+        self.squares[target.0][target.1] = piece;
+        self.squares[location.0][location.1] = Piece::Blank;
+        self.increment_move();
+    }
+
+    pub fn make_move(&mut self, move_string: String) {
         // Expecting a 4 char string, from original location to target location
         let location = Board::square_to_row_col(move_string.get(0..2));
         let target = Board::square_to_row_col(move_string.get(2..4));
         let piece = self.squares[location.0][location.1];
-        self.squares[target.0][target.1] = piece;
-        self.squares[location.0][location.1] = Piece::Blank;
+
+        if self.validate_move(location, target, piece) {
+            self.move_piece(piece, location, target)
+        } else {
+            panic!("Invalid move!")
+        }
     }
 }
 
@@ -133,15 +183,15 @@ mod tests {
     fn test_move_piece() {
         // test that pieces are able to move
         let mut board = Board::default();
-        board.move_piece(String::from("e2e4"));
+        board.make_move(String::from("e2e4"));
         assert_eq!(
             board.to_string(),
             "rnbqkbnr\npppppppp\n--------\n--------\n----P---\n--------\nPPPP-PPP\nRNBQKBNR\n"
         );
-        board.move_piece(String::from("d2d3"));
+        board.make_move(String::from("d7d6"));
         assert_eq!(
             board.to_string(),
-            "rnbqkbnr\npppppppp\n--------\n--------\n----P---\n---P----\nPPP--PPP\nRNBQKBNR\n"
+            "rnbqkbnr\nppp-pppp\n---p----\n--------\n----P---\n--------\nPPPP-PPP\nRNBQKBNR\n"
         );
     }
 
@@ -150,13 +200,13 @@ mod tests {
     fn test_move_piece_invalid_row() {
         // test that only valid squares are allowed
         let mut board = Board::default();
-        board.move_piece(String::from("e2e9"));
+        board.make_move(String::from("e2e9"));
     }
     #[test]
     #[should_panic]
     fn test_move_piece_invalid_col() {
         // test that only valid squares are allowed
         let mut board = Board::default();
-        board.move_piece(String::from("z2e4"));
+        board.make_move(String::from("z2e4"));
     }
 }
