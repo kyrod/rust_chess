@@ -15,6 +15,13 @@ pub enum Turn {
     Black,
 }
 
+#[derive(Copy, Clone, PartialEq)]
+pub struct Move {
+    pub piece: Piece,
+    pub start: (usize, usize),
+    pub end: (usize, usize),
+}
+
 impl Turn {
     pub fn to_string(&self) -> &'static str {
         match *self {
@@ -162,6 +169,51 @@ impl Board {
             panic!("Invalid move!")
         }
     }
+
+    pub fn make_move_from_move(&mut self, _move: Move) {
+        let location = _move.start;
+        let target = _move.end;
+        let piece = _move.piece;
+
+        if self.validate_move(location, target, piece) {
+            self.move_piece(piece, location, target)
+        } else {
+            panic!("Invalid move!")
+        }
+    }
+
+    pub fn generate_moves(self) -> Vec<Move> {
+        // Horrendously inneficient way to generate moves
+        let mut v: Vec<Move> = Vec::new();
+        for (i, row) in self.squares.iter().enumerate() {
+            for (j, col) in row.iter().enumerate() {
+                let start = (i, j);
+                let piece = col;
+                for (m, row2) in self.squares.iter().enumerate() {
+                    for (n, _) in row2.iter().enumerate() {
+                        let target = (m, n);
+                        if self.validate_move(start, target, *piece) {
+                            v.push(Move {
+                                piece: *piece,
+                                start: start,
+                                end: target,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        return v;
+    }
+    pub fn recurse_gen_moves(self) -> Vec<Vec<Move>> {
+        let mut v: Vec<Vec<Move>> = Vec::new();
+        for m in self.generate_moves() {
+            let mut temp: Board = self.clone();
+            temp.make_move_from_move(m);
+            v.push(temp.generate_moves());
+        }
+        return v;
+    }
 }
 
 #[cfg(test)]
@@ -208,5 +260,20 @@ mod tests {
         // test that only valid squares are allowed
         let mut board = Board::default();
         board.make_move(String::from("z2e4"));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_move_piece_empty_square() {
+        // test that only valid squares are allowed
+        let mut board = Board::default();
+        board.make_move(String::from("e3e4"));
+    }
+    #[test]
+    #[should_panic]
+    fn test_move_piece_opponent_turn() {
+        // test that only valid squares are allowed
+        let mut board = Board::default();
+        board.make_move(String::from("e7e6"));
     }
 }

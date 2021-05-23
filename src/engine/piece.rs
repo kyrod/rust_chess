@@ -39,12 +39,26 @@ pub enum Piece {
     Blank,
 }
 
+impl PieceColor {
+    pub fn as_string(&self) -> String {
+        match *self {
+            PieceColor::White => "White",
+            PieceColor::Black => "Black",
+            PieceColor::None => "None",
+        }
+        .to_string()
+    }
+}
+
 impl PieceObj {
     pub fn as_type(&self) -> PieceType {
         return self.ptype;
     }
     pub fn as_color(&self) -> PieceColor {
         return self.pcolor;
+    }
+    pub fn as_string(&self) -> String {
+        return (self.as_color().as_string() + " " + &self.as_type().as_string()).to_string();
     }
     pub fn flip(pos: (usize, usize)) -> (usize, usize) {
         // this is ugly, fix this pls
@@ -131,6 +145,10 @@ impl Piece {
         return self.as_type().as_char();
     }
 
+    pub fn as_string(&self) -> String {
+        return self.as_piece().as_string();
+    }
+
     pub fn as_color(&self) -> PieceColor {
         return self.as_piece().as_color();
     }
@@ -166,6 +184,18 @@ impl PieceType {
             PieceType::Pawn => 'P',
             PieceType::Blank => '-',
         }
+    }
+    pub fn as_string(&self) -> String {
+        match *self {
+            PieceType::King => "King",
+            PieceType::Queen => "Queen",
+            PieceType::Rook => "Rook",
+            PieceType::Knight => "Knight",
+            PieceType::Bishop => "Bishop",
+            PieceType::Pawn => "Pawn",
+            PieceType::Blank => "None",
+        }
+        .to_string()
     }
 
     pub fn valid_move(&self, start: (usize, usize), end: (usize, usize)) -> bool {
