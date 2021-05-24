@@ -197,7 +197,7 @@ impl Board {
         self.increment_move();
     }
 
-    pub fn make_move(&mut self, move_string: String) {
+    pub fn make_move_from_string(&mut self, move_string: String) {
         // Expecting a 4 char string, from original location to target location
         let location = Board::square_to_row_col(move_string.get(0..2));
         let target = Board::square_to_row_col(move_string.get(2..4));
@@ -275,12 +275,12 @@ mod tests {
     fn test_move_piece() {
         // test that pieces are able to move
         let mut board = Board::default();
-        board.make_move(String::from("e2e4"));
+        board.make_move_from_string(String::from("e2e4"));
         assert_eq!(
             board.to_string(),
             "rnbqkbnr\npppppppp\n--------\n--------\n----P---\n--------\nPPPP-PPP\nRNBQKBNR\n"
         );
-        board.make_move(String::from("d7d6"));
+        board.make_move_from_string(String::from("d7d6"));
         assert_eq!(
             board.to_string(),
             "rnbqkbnr\nppp-pppp\n---p----\n--------\n----P---\n--------\nPPPP-PPP\nRNBQKBNR\n"
@@ -292,14 +292,14 @@ mod tests {
     fn test_move_piece_invalid_row() {
         // test that only valid squares are allowed
         let mut board = Board::default();
-        board.make_move(String::from("e2e9"));
+        board.make_move_from_string(String::from("e2e9"));
     }
     #[test]
     #[should_panic]
     fn test_move_piece_invalid_col() {
         // test that only valid squares are allowed
         let mut board = Board::default();
-        board.make_move(String::from("z2e4"));
+        board.make_move_from_string(String::from("z2e4"));
     }
 
     #[test]
@@ -307,14 +307,14 @@ mod tests {
     fn test_move_piece_empty_square() {
         // test that only valid squares are allowed
         let mut board = Board::default();
-        board.make_move(String::from("e3e4"));
+        board.make_move_from_string(String::from("e3e4"));
     }
     #[test]
     #[should_panic]
     fn test_move_piece_opponent_turn() {
         // test that only valid squares are allowed
         let mut board = Board::default();
-        board.make_move(String::from("e7e6"));
+        board.make_move_from_string(String::from("e7e6"));
     }
 
     #[test]
