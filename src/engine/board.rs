@@ -10,6 +10,9 @@ pub struct Board {
     pub squares: [[Piece; 8]; 8],
     pub move_number: u32,
     pub to_move: Turn,
+    pub can_castle: [char; 4],
+    pub half_move: u32,
+    pub en_passant: (char, char),
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -65,6 +68,9 @@ impl Board {
             ],
             move_number: 0,
             to_move: Turn::White,
+            can_castle: ['K', 'Q', 'k', 'q'],
+            en_passant: ('-', '-'),
+            half_move: 0,
         }
     }
     pub fn print(&self) {
@@ -84,6 +90,98 @@ impl Board {
             board_str.push('\n');
         }
         return board_str;
+    }
+    fn get_castling(s: String) -> [char; 4] {
+        let mut v = ['-'; 4];
+        for x in s.chars() {
+            let i = match x {
+                'K' => 0,
+                'Q' => 1,
+                'k' => 2,
+                'q' => 3,
+                '-' => 4,
+                _ => 4,
+            };
+            if i != 4 {
+                v[i] = x;
+            }
+        }
+        return v;
+    }
+
+    fn get_en_passant(string: String) -> (char, char) {
+        if string == String::from("-") {
+            return ('-', '-');
+        }
+        return (
+            string.chars().next().unwrap(),
+            string.chars().next().unwrap(),
+        );
+    }
+    pub fn from_fen(string: String) -> Board {
+        let mut x = string.split_whitespace();
+        let board = match x.next() {
+            Some(y) => y.to_string(),
+            None => panic!("Invalid FEN"),
+        };
+        let to_move = match x.next() {
+            Some(y) => match y {
+                "w" => Turn::White,
+                "b" => Turn::Black,
+                _ => Turn::White,
+            },
+            None => panic!("Invalid FEN"),
+        };
+        let castle = match x.next() {
+            Some(y) => Board::get_castling(y.to_string()),
+            None => panic!("Invalid FEN"),
+        };
+        let en_passant = match x.next() {
+            Some(y) => Board::get_en_passant(y.to_string()),
+            None => panic!("Invalid FEN"),
+        };
+        let half_move = match x.next() {
+            Some(y) => y.to_string().parse::<u32>().unwrap(),
+            None => panic!("Invalid FEN"),
+        };
+        let full_move = match x.next() {
+            Some(y) => y.to_string().parse::<u32>().unwrap(),
+            None => panic!("Invalid FEN"),
+        };
+        let pieces = Board::pieces_from_fen(board);
+        return Board {
+            squares: pieces,
+            move_number: full_move,
+            to_move: to_move,
+            can_castle: castle,
+            half_move: half_move,
+            en_passant: en_passant,
+        };
+    }
+
+    pub fn pieces_from_fen(pieces: String) -> [[Piece; 8]; 8] {
+        let lines: Vec<&str> = pieces.split('/').collect();
+        let mut squares = [[Piece::Blank; 8]; 8];
+        for (i, l) in lines.iter().enumerate() {
+            println!("{}", l);
+            let mut j = 0;
+            for c in l.chars() {
+                if c.is_digit(8) {
+                    for _ in 0..c.to_digit(8).unwrap() {
+                        squares[i][j] = Piece::Blank;
+                        j += 1;
+                    }
+                } else {
+                    squares[i][j] = Piece::from_char(c);
+                    j += 1;
+                }
+            }
+        }
+        return squares;
+    }
+
+    pub fn to_FEN(self) {
+        //TODO: impl
     }
 
     pub fn square_to_row_col(square_string: Option<&str>) -> (usize, usize) {
@@ -245,6 +343,7 @@ impl Board {
         }
         return v;
     }
+
     pub fn recurse_gen_moves(self) -> Vec<Vec<Move>> {
         let mut v: Vec<Vec<Move>> = Vec::new();
         for m in self.generate_moves() {
@@ -331,5 +430,25 @@ mod tests {
             }
         }
         assert_eq!(count2, 400);
+    }
+    #[test]
+    fn test_from_fen() {
+        let mut board1 = Board::default();
+
+        let board2 = Board::from_fen(String::from(
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        ));
+        assert_eq!(board1.to_string(), board2.to_string());
+        board1.make_move_from_string(String::from("e2e4"));
+        let board2 = Board::from_fen(String::from(
+            "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1",
+        ));
+        assert_eq!(board1.to_string(), board2.to_string());
+        board1.make_move_from_string(String::from("c7c5"));
+        board1.make_move_from_string(String::from("g1f3"));
+        let board2 = Board::from_fen(String::from(
+            "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+        ));
+        assert_eq!(board1.to_string(), board2.to_string());
     }
 }

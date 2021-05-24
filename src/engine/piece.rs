@@ -138,6 +138,23 @@ impl Piece {
             },
         }
     }
+    pub fn from_char(c: char) -> Piece {
+        match c {
+            'K' => Piece::WKing,
+            'Q' => Piece::WQueen,
+            'R' => Piece::WRook,
+            'N' => Piece::WKnight,
+            'B' => Piece::WBishop,
+            'P' => Piece::WPawn,
+            'p' => Piece::BPawn,
+            'b' => Piece::BBishop,
+            'n' => Piece::BKnight,
+            'r' => Piece::BRook,
+            'q' => Piece::BQueen,
+            'k' => Piece::BKing,
+            _ => Piece::Blank,
+        }
+    }
     pub fn as_char(&self) -> char {
         if self.as_piece().as_color() == PieceColor::White {
             return self.as_type().as_upper();
