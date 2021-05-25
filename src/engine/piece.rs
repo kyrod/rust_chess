@@ -64,7 +64,12 @@ impl PieceObj {
         // this is ugly, fix this pls
         return ((-(pos.0 as i8) + 7) as usize, pos.1);
     }
-    pub fn valid_move(&self, start: (usize, usize), end: (usize, usize)) -> bool {
+    pub fn valid_move(
+        &self,
+        start: (usize, usize),
+        end: (usize, usize),
+        can_castle: [char; 4],
+    ) -> bool {
         if start == end {
             return false;
         }
@@ -72,11 +77,13 @@ impl PieceObj {
             && self.as_color() == PieceColor::Black
         {
             // pawn + king moves can depend on color
-            return self
-                .as_type()
-                .valid_move(PieceObj::flip(start), PieceObj::flip(end));
+            return self.as_type().valid_move(
+                PieceObj::flip(start),
+                PieceObj::flip(end),
+                can_castle,
+            );
         }
-        return self.as_type().valid_move(start, end);
+        return self.as_type().valid_move(start, end, can_castle);
     }
 }
 
@@ -174,8 +181,13 @@ impl Piece {
         return self.as_piece().as_type();
     }
 
-    pub fn valid_move(self, start: (usize, usize), end: (usize, usize)) -> bool {
-        return self.as_piece().valid_move(start, end);
+    pub fn valid_move(
+        self,
+        start: (usize, usize),
+        end: (usize, usize),
+        can_castle: [char; 4],
+    ) -> bool {
+        return self.as_piece().valid_move(start, end, can_castle);
     }
 }
 
@@ -215,10 +227,38 @@ impl PieceType {
         .to_string()
     }
 
-    pub fn valid_move(&self, start: (usize, usize), end: (usize, usize)) -> bool {
-        fn king_valid_move(start: (usize, usize), end: (usize, usize)) -> bool {
-            return ((start.0 as i8 - end.0 as i8).abs() <= 1)
-                && ((start.1 as i8 - end.1 as i8).abs() <= 1);
+    pub fn valid_move(
+        &self,
+        start: (usize, usize),
+        end: (usize, usize),
+        can_castle: [char; 4],
+    ) -> bool {
+        fn king_valid_move(
+            start: (usize, usize),
+            end: (usize, usize),
+            can_castle: [char; 4],
+        ) -> bool {
+            return (((start.0 as i8 - end.0 as i8).abs() <= 1)
+                && ((start.1 as i8 - end.1 as i8).abs() <= 1))
+                // Castle
+                // gross
+                || (start.0 == end.0
+                    && (start.1 as i8 - end.1 as i8).abs() == 2
+                    && (
+                        (start.0 == 0
+                        && (
+                            (can_castle[0] == 'K' && end.1 == 6)
+                            || (can_castle[1] == 'Q' && end.1 == 2)
+                            )
+                        )
+                        || (start.0 == 7
+                            && (
+                                (can_castle[2] == 'k' && end.1 == 6)
+                                || (can_castle[3] == 'q' && end.1 == 2)
+                            )
+                        )
+                    )
+                );
         }
         fn queen_valid_move(start: (usize, usize), end: (usize, usize)) -> bool {
             return rook_valid_move(start, end) || bishop_valid_move(start, end);
@@ -247,7 +287,7 @@ impl PieceType {
         }
 
         match *self {
-            PieceType::King => king_valid_move(start, end),
+            PieceType::King => king_valid_move(start, end, can_castle),
             PieceType::Queen => queen_valid_move(start, end),
             PieceType::Rook => rook_valid_move(start, end),
             PieceType::Knight => knight_valid_move(start, end),
@@ -279,75 +319,153 @@ mod tests {
     #[test]
     fn test_pawn_move() {
         let piece = Piece::BPawn;
-        assert_eq!(piece.valid_move((1, 1), (1, 2)), false); // sideways pawn move
-        assert_eq!(piece.valid_move((1, 1), (2, 1)), true); // forward pawn move
-        assert_eq!(piece.valid_move((1, 1), (3, 1)), true); // double pawn move
+        assert_eq!(
+            piece.valid_move((1, 1), (1, 2), ['K', 'Q', 'k', 'q']),
+            false
+        ); // sideways pawn move
+        assert_eq!(piece.valid_move((1, 1), (2, 1), ['K', 'Q', 'k', 'q']), true); // forward pawn move
+        assert_eq!(piece.valid_move((1, 1), (3, 1), ['K', 'Q', 'k', 'q']), true); // double pawn move
         let piece = Piece::WPawn;
-        assert_eq!(piece.valid_move((6, 1), (5, 1)), true); // sideways pawn move
-        assert_eq!(piece.valid_move((6, 1), (4, 1)), true); // forward pawn move
-        assert_eq!(piece.valid_move((6, 1), (3, 1)), false); // double pawn move
+        assert_eq!(piece.valid_move((6, 1), (5, 1), ['K', 'Q', 'k', 'q']), true); // sideways pawn move
+        assert_eq!(piece.valid_move((6, 1), (4, 1), ['K', 'Q', 'k', 'q']), true); // forward pawn move
+        assert_eq!(
+            piece.valid_move((6, 1), (3, 1), ['K', 'Q', 'k', 'q']),
+            false
+        ); // double pawn move
     }
 
     #[test]
     fn test_rook_move() {
         let piece = Piece::BRook;
-        assert_eq!(piece.valid_move((1, 1), (1, 5)), true); // sideways move
-        assert_eq!(piece.valid_move((1, 1), (7, 1)), true); // forward move
-        assert_eq!(piece.valid_move((7, 1), (1, 1)), true); // backwards move
-        assert_eq!(piece.valid_move((7, 1), (6, 2)), false); // diagonal move
-        assert_eq!(piece.valid_move((7, 1), (5, 2)), false); // knight move
+        assert_eq!(piece.valid_move((1, 1), (1, 5), ['K', 'Q', 'k', 'q']), true); // sideways move
+        assert_eq!(piece.valid_move((1, 1), (7, 1), ['K', 'Q', 'k', 'q']), true); // forward move
+        assert_eq!(piece.valid_move((7, 1), (1, 1), ['K', 'Q', 'k', 'q']), true); // backwards move
+        assert_eq!(
+            piece.valid_move((7, 1), (6, 2), ['K', 'Q', 'k', 'q']),
+            false
+        ); // diagonal move
+        assert_eq!(
+            piece.valid_move((7, 1), (5, 2), ['K', 'Q', 'k', 'q']),
+            false
+        ); // knight move
     }
 
     #[test]
     fn test_bishop_move() {
         let piece = Piece::BBishop;
-        assert_eq!(piece.valid_move((1, 1), (1, 5)), false); // sideways move
-        assert_eq!(piece.valid_move((1, 1), (7, 1)), false); // forward move
-        assert_eq!(piece.valid_move((7, 1), (1, 1)), false); // backwards move
-        assert_eq!(piece.valid_move((5, 5), (6, 4)), true); // diagonal move
-        assert_eq!(piece.valid_move((5, 5), (4, 4)), true); // diagonal move
-        assert_eq!(piece.valid_move((7, 1), (5, 2)), false); // knight move
+        assert_eq!(
+            piece.valid_move((1, 1), (1, 5), ['K', 'Q', 'k', 'q']),
+            false
+        ); // sideways move
+        assert_eq!(
+            piece.valid_move((1, 1), (7, 1), ['K', 'Q', 'k', 'q']),
+            false
+        ); // forward move
+        assert_eq!(
+            piece.valid_move((7, 1), (1, 1), ['K', 'Q', 'k', 'q']),
+            false
+        ); // backwards move
+        assert_eq!(piece.valid_move((5, 5), (6, 4), ['K', 'Q', 'k', 'q']), true); // diagonal move
+        assert_eq!(piece.valid_move((5, 5), (4, 4), ['K', 'Q', 'k', 'q']), true); // diagonal move
+        assert_eq!(
+            piece.valid_move((7, 1), (5, 2), ['K', 'Q', 'k', 'q']),
+            false
+        ); // knight move
     }
     #[test]
     fn test_queen_move() {
         let piece = Piece::BQueen;
-        assert_eq!(piece.valid_move((1, 1), (1, 5)), true); // sideways move
-        assert_eq!(piece.valid_move((1, 1), (7, 1)), true); // forward move
-        assert_eq!(piece.valid_move((7, 1), (1, 1)), true); // backwards move
-        assert_eq!(piece.valid_move((5, 5), (6, 4)), true); // diagonal move
-        assert_eq!(piece.valid_move((5, 5), (4, 4)), true); // diagonal move
-        assert_eq!(piece.valid_move((7, 1), (5, 2)), false); // knight move
+        assert_eq!(piece.valid_move((1, 1), (1, 5), ['K', 'Q', 'k', 'q']), true); // sideways move
+        assert_eq!(piece.valid_move((1, 1), (7, 1), ['K', 'Q', 'k', 'q']), true); // forward move
+        assert_eq!(piece.valid_move((7, 1), (1, 1), ['K', 'Q', 'k', 'q']), true); // backwards move
+        assert_eq!(piece.valid_move((5, 5), (6, 4), ['K', 'Q', 'k', 'q']), true); // diagonal move
+        assert_eq!(piece.valid_move((5, 5), (4, 4), ['K', 'Q', 'k', 'q']), true); // diagonal move
+        assert_eq!(
+            piece.valid_move((7, 1), (5, 2), ['K', 'Q', 'k', 'q']),
+            false
+        ); // knight move
     }
 
     #[test]
     fn test_knight_move() {
         let piece = Piece::BKnight;
-        assert_eq!(piece.valid_move((1, 1), (1, 5)), false); // sideways move
-        assert_eq!(piece.valid_move((1, 1), (7, 1)), false); // forward move
-        assert_eq!(piece.valid_move((7, 1), (1, 1)), false); // backwards move
-        assert_eq!(piece.valid_move((5, 5), (6, 4)), false); // diagonal move
-        assert_eq!(piece.valid_move((5, 5), (4, 4)), false); // diagonal move
-        assert_eq!(piece.valid_move((5, 5), (4, 3)), true); // knight move
-        assert_eq!(piece.valid_move((5, 5), (6, 3)), true); // knight move
-        assert_eq!(piece.valid_move((5, 5), (6, 7)), true); // knight move
-        assert_eq!(piece.valid_move((5, 5), (4, 7)), true); // knight move
-        assert_eq!(piece.valid_move((5, 5), (7, 4)), true); // knight move
-        assert_eq!(piece.valid_move((5, 5), (7, 6)), true); // knight move
-        assert_eq!(piece.valid_move((5, 5), (3, 4)), true); // knight move
-        assert_eq!(piece.valid_move((5, 5), (3, 6)), true); // knight move
+        assert_eq!(
+            piece.valid_move((1, 1), (1, 5), ['K', 'Q', 'k', 'q']),
+            false
+        ); // sideways move
+        assert_eq!(
+            piece.valid_move((1, 1), (7, 1), ['K', 'Q', 'k', 'q']),
+            false
+        ); // forward move
+        assert_eq!(
+            piece.valid_move((7, 1), (1, 1), ['K', 'Q', 'k', 'q']),
+            false
+        ); // backwards move
+        assert_eq!(
+            piece.valid_move((5, 5), (6, 4), ['K', 'Q', 'k', 'q']),
+            false
+        ); // diagonal move
+        assert_eq!(
+            piece.valid_move((5, 5), (4, 4), ['K', 'Q', 'k', 'q']),
+            false
+        ); // diagonal move
+        assert_eq!(piece.valid_move((5, 5), (4, 3), ['K', 'Q', 'k', 'q']), true); // knight move
+        assert_eq!(piece.valid_move((5, 5), (6, 3), ['K', 'Q', 'k', 'q']), true); // knight move
+        assert_eq!(piece.valid_move((5, 5), (6, 7), ['K', 'Q', 'k', 'q']), true); // knight move
+        assert_eq!(piece.valid_move((5, 5), (4, 7), ['K', 'Q', 'k', 'q']), true); // knight move
+        assert_eq!(piece.valid_move((5, 5), (7, 4), ['K', 'Q', 'k', 'q']), true); // knight move
+        assert_eq!(piece.valid_move((5, 5), (7, 6), ['K', 'Q', 'k', 'q']), true); // knight move
+        assert_eq!(piece.valid_move((5, 5), (3, 4), ['K', 'Q', 'k', 'q']), true); // knight move
+        assert_eq!(piece.valid_move((5, 5), (3, 6), ['K', 'Q', 'k', 'q']), true);
+        // knight move
     }
     #[test]
     fn test_king_move() {
         let piece = Piece::BKing;
-        assert_eq!(piece.valid_move((1, 1), (1, 5)), false); // sideways move
-        assert_eq!(piece.valid_move((1, 1), (7, 1)), false); // forward move
-        assert_eq!(piece.valid_move((7, 1), (1, 1)), false); // backwards move
-        assert_eq!(piece.valid_move((5, 5), (7, 7)), false); // diagonal move
-        assert_eq!(piece.valid_move((5, 5), (3, 7)), false); // diagonal move
-        assert_eq!(piece.valid_move((5, 5), (4, 3)), false); // knight move
-        assert_eq!(piece.valid_move((5, 5), (6, 3)), false); // knight move
-        assert_eq!(piece.valid_move((5, 5), (4, 5)), true); // 1 space
-        assert_eq!(piece.valid_move((5, 5), (4, 4)), true); // 1 space
-        assert_eq!(piece.valid_move((5, 5), (5, 4)), true); // 1 space
+        assert_eq!(
+            piece.valid_move((1, 1), (1, 5), ['K', 'Q', 'k', 'q']),
+            false
+        ); // sideways move
+        assert_eq!(
+            piece.valid_move((1, 1), (7, 1), ['K', 'Q', 'k', 'q']),
+            false
+        ); // forward move
+        assert_eq!(
+            piece.valid_move((7, 1), (1, 1), ['K', 'Q', 'k', 'q']),
+            false
+        ); // backwards move
+        assert_eq!(
+            piece.valid_move((5, 5), (7, 7), ['K', 'Q', 'k', 'q']),
+            false
+        ); // diagonal move
+        assert_eq!(
+            piece.valid_move((5, 5), (3, 7), ['K', 'Q', 'k', 'q']),
+            false
+        ); // diagonal move
+        assert_eq!(
+            piece.valid_move((5, 5), (4, 3), ['K', 'Q', 'k', 'q']),
+            false
+        ); // knight move
+        assert_eq!(
+            piece.valid_move((5, 5), (6, 3), ['K', 'Q', 'k', 'q']),
+            false
+        ); // knight move
+        assert_eq!(piece.valid_move((5, 5), (4, 5), ['K', 'Q', 'k', 'q']), true); // 1 space
+        assert_eq!(piece.valid_move((5, 5), (4, 4), ['K', 'Q', 'k', 'q']), true); // 1 space
+        assert_eq!(piece.valid_move((5, 5), (5, 4), ['K', 'Q', 'k', 'q']), true); // 1 space
+                                                                                  // Castling
+        assert_eq!(piece.valid_move((0, 4), (0, 2), ['K', 'Q', 'k', 'q']), true);
+        assert_eq!(
+            piece.valid_move((0, 4), (0, 2), ['K', 'Q', 'k', '-']),
+            false
+        );
+        assert_eq!(
+            Piece::BKing.valid_move((7, 4), (7, 2), ['-', '-', 'k', 'q']),
+            false
+        );
+        assert_eq!(
+            Piece::WKing.valid_move((7, 4), (7, 2), ['K', 'Q', 'k', 'q']),
+            true
+        );
     }
 }

@@ -274,7 +274,7 @@ impl Board {
             // Cannot move opponent's piece
             return false;
         }
-        if !piece.valid_move(start, target) {
+        if !piece.valid_move(start, target, self.can_castle) {
             return false;
         }
         if self.piece_in_path(start, target, piece) {
@@ -289,9 +289,33 @@ impl Board {
         self.to_move = self.to_move.opposite_turn();
     }
 
+    fn update_castling(&mut self, piece: Piece, location: (usize, usize), target: (usize, usize)) {
+        //update can_castle
+    }
+
+    fn update_en_passant(
+        &mut self,
+        piece: Piece,
+        location: (usize, usize),
+        target: (usize, usize),
+    ) {
+        // Update the en passant square
+    }
+
+    fn update_half_move(&mut self, piece_taken: bool) {
+        if piece_taken {
+            self.half_move = 0;
+        } else {
+            self.half_move += 1;
+        }
+    }
+
     pub fn move_piece(&mut self, piece: Piece, location: (usize, usize), target: (usize, usize)) {
+        self.update_half_move(self.squares[target.0][target.1] != Piece::Blank);
         self.squares[target.0][target.1] = piece;
         self.squares[location.0][location.1] = Piece::Blank;
+        self.update_castling(piece, location, target);
+        self.update_en_passant(piece, location, target);
         self.increment_move();
     }
 
